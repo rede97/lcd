@@ -3,20 +3,28 @@
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
+#include <linux/cdev.h>
 #include <linux/fb.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 #include <asm/delay.h>
 
 struct pcflcd
 {
+    struct cdev cdev;
+    struct class *cls;
+    struct device *device;
     struct i2c_client *client;
+    // lock
+    struct mutex lock;
     // property
     __u8 cols;
     __u8 rows;
@@ -28,6 +36,17 @@ struct pcflcd
     // status
     __u8 pin;
 };
+
+int pcflcd_backlight(struct pcflcd *lcd, bool onoff);
+int pcflcd_dat(struct pcflcd *lcd, __u8 val);
+int pcflcd_display(struct pcflcd *lcd, bool onoff);
+int pcflcd_cursor(struct pcflcd *lcd, bool onoff);
+int pcflcd_blink(struct pcflcd *lcd, bool onoff);
+int pcflcd_scroll_display(struct pcflcd *lcd, bool right_left);
+int pcflcd_entry(struct pcflcd *lcd, bool left_to_right);
+int pcflcd_auto_scroll(struct pcflcd *lcd, bool onoff);
+int pcflcd_set_cursor(struct pcflcd *lcd, __u8 row, __u8 col);
+int pcflcd_clear(struct pcflcd *lcd);
 
 // commands
 #define LCD_CLEARDISPLAY 0x01

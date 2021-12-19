@@ -1,5 +1,10 @@
 #include "pcflcd.h"
 
+#define DEV_NAME "pcflcd"
+const char *DEV_NAME_STR = DEV_NAME;
+
+extern struct file_operations pcflcd_ops;
+
 static void pcflcd_property_init(struct device *dev, struct pcflcd *lcd)
 {
     __u32 prop = 0;
@@ -40,7 +45,7 @@ static void pcflcd_property_init(struct device *dev, struct pcflcd *lcd)
     lcd->oled = device_property_read_bool(dev, "lcd,oled");
 }
 
-static inline int pcflcd_backlight(struct pcflcd *lcd, bool onoff)
+int pcflcd_backlight(struct pcflcd *lcd, bool onoff)
 {
     if (onoff)
     {
@@ -134,6 +139,37 @@ int pcflcd_blink(struct pcflcd *lcd, bool onoff)
     return pcflcd_cmd(lcd, LCD_DISPLAYCONTROL | lcd->control);
 }
 
+int pcflcd_scroll_display(struct pcflcd *lcd, bool right_left)
+{
+    return pcflcd_cmd(lcd, LCD_CURSORSHIFT | LCD_DISPLAYMOVE | (right_left ? LCD_MOVERIGHT : LCD_MOVELEFT));
+}
+
+int pcflcd_entry(struct pcflcd *lcd, bool left_to_right)
+{
+    if (left_to_right)
+    {
+        lcd->mode |= LCD_ENTRYLEFT;
+    }
+    else
+    {
+        lcd->mode &= (~LCD_ENTRYLEFT);
+    }
+    return pcflcd_cmd(lcd, LCD_ENTRYMODESET | lcd->mode);
+}
+
+int pcflcd_auto_scroll(struct pcflcd *lcd, bool onoff)
+{
+    if (onoff)
+    {
+        lcd->mode |= LCD_ENTRYSHIFTINCREMENT;
+    }
+    else
+    {
+        lcd->mode &= (~LCD_ENTRYSHIFTINCREMENT);
+    }
+    return pcflcd_cmd(lcd, LCD_ENTRYMODESET | lcd->mode);
+}
+
 int pcflcd_set_cursor(struct pcflcd *lcd, __u8 row, __u8 col)
 {
     __u8 row_offsets[] = {0x00, 0x40, 0x14, 0x54};
@@ -141,7 +177,7 @@ int pcflcd_set_cursor(struct pcflcd *lcd, __u8 row, __u8 col)
     {
         row = lcd->rows - 1;
     }
-    return pcflcd_cmd(lcd, LCD_SETDDRAMADDR | (col + row_offsets[row]));
+    return pcflcd_cmd(lcd, LCD_SETDDRAMADDR | (col + row_offsets[row % 4]));
 }
 
 int pcflcd_clear(struct pcflcd *lcd)
@@ -167,13 +203,15 @@ static inline int pcflcd_write4(struct pcflcd *lcd, __u8 val)
 
 static int pcflcd_probe(struct i2c_client *client)
 {
+    int ret;
     int err;
+    dev_t devno;
     struct device *dev = &client->dev;
     struct pcflcd *lcd = devm_kzalloc(dev, sizeof(struct pcflcd), GFP_KERNEL);
     i2c_set_clientdata(client, lcd);
     lcd->client = client;
     pcflcd_property_init(dev, lcd);
-    dev_info(dev, "pcflcd init: rows: %d cols: %d oled: %d", lcd->rows, lcd->cols, lcd->oled);
+    dev_info(dev, "pcflcd init: rows: %d cols: %d oled: %d\n", lcd->rows, lcd->cols, lcd->oled);
     lcd->function = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
     if (lcd->rows > 1)
     {
@@ -218,14 +256,62 @@ static int pcflcd_probe(struct i2c_client *client)
     if (err)
         return -EBADF;
 
-    pcflcd_send(lcd, false, 'H');
+    {
+        mutex_init(&lcd->lock);
+        ret = alloc_chrdev_region(&devno, 0, 1, DEV_NAME_STR);
+        if (ret < 0)
+        {
+            dev_alert(dev, "alloc chrdev error: %d\n", ret);
+            goto alloc_chrdev_err;
+        }
+
+        cdev_init(&lcd->cdev, &pcflcd_ops);
+        lcd->cdev.owner = THIS_MODULE;
+        ret = cdev_add(&lcd->cdev, devno, 1);
+        if (ret)
+        {
+            dev_alert(dev, "cdev add error: %d\n", ret);
+            goto cdev_add_err;
+        }
+
+        lcd->cls = class_create(THIS_MODULE, "lcd");
+        lcd->device = device_create(lcd->cls, dev, devno, lcd, DEV_NAME_STR);
+        if (IS_ERR(lcd->device))
+        {
+            dev_alert(dev, "create device err\n");
+            goto dev_create_err;
+        }
+    }
 
     return 0;
+
+dev_create_err:
+    class_destroy(lcd->cls);
+    cdev_del(&lcd->cdev);
+cdev_add_err:
+    unregister_chrdev_region(devno, 1);
+alloc_chrdev_err:
+    return ret;
 }
 
 static int pcflcd_remove(struct i2c_client *client)
 {
+    // int err;
+    struct pcflcd *lcd = i2c_get_clientdata(client);
+
+    {
+        dev_t devno = lcd->cdev.dev;
+        device_destroy(lcd->cls, devno);
+        class_destroy(lcd->cls);
+        cdev_del(&lcd->cdev);
+        unregister_chrdev_region(devno, 1);
+    }
+
+    pcflcd_cursor(lcd, false);
+    pcflcd_clear(lcd);
+    pcflcd_display(lcd, false);
     i2c_smbus_write_byte(client, 0x00);
+
     return 0;
 }
 
