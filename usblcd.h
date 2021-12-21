@@ -1,7 +1,6 @@
-#ifndef PCFLCD_H
-#define PCFLCD_H
+#ifndef USBLCD_H
+#define USBLCD_H
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/cdev.h>
 #include <linux/fb.h>
@@ -13,11 +12,11 @@
 #include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/uaccess.h>
-#include <linux/regulator/consumer.h>
 #include <linux/types.h>
+#include <linux/usb.h>
 #include <asm/delay.h>
 
-struct pcflcd
+struct usblcd
 {
     struct cdev cdev;
     struct class *cls;
@@ -37,16 +36,16 @@ struct pcflcd
     __u8 pin;
 };
 
-int pcflcd_backlight(struct pcflcd *lcd, bool onoff);
-int pcflcd_dat(struct pcflcd *lcd, __u8 val);
-int pcflcd_display(struct pcflcd *lcd, bool onoff);
-int pcflcd_cursor(struct pcflcd *lcd, bool onoff);
-int pcflcd_blink(struct pcflcd *lcd, bool onoff);
-int pcflcd_scroll_display(struct pcflcd *lcd, bool right_left);
-int pcflcd_entry(struct pcflcd *lcd, bool left_to_right);
-int pcflcd_auto_scroll(struct pcflcd *lcd, bool onoff);
-int pcflcd_set_cursor(struct pcflcd *lcd, __u8 row, __u8 col);
-int pcflcd_clear(struct pcflcd *lcd);
+int usblcd_backlight(struct usblcd *lcd, bool onoff);
+int usblcd_dat(struct usblcd *lcd, __u8 val);
+int usblcd_display(struct usblcd *lcd, bool onoff);
+int usblcd_cursor(struct usblcd *lcd, bool onoff);
+int usblcd_blink(struct usblcd *lcd, bool onoff);
+int usblcd_scroll_display(struct usblcd *lcd, bool right_left);
+int usblcd_entry(struct usblcd *lcd, bool left_to_right);
+int usblcd_auto_scroll(struct usblcd *lcd, bool onoff);
+int usblcd_set_cursor(struct usblcd *lcd, __u8 row, __u8 col);
+int usblcd_clear(struct usblcd *lcd);
 
 // commands
 #define LCD_CLEARDISPLAY 0x01
