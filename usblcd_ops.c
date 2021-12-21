@@ -52,46 +52,46 @@ static long usblcd_ops_ioctl(struct file *filp, unsigned int cmd, unsigned long 
     unsigned int val;
     struct usblcd *lcd = filp->private_data;
     dev_info(lcd->device, "cmd: 0x%08x\n", cmd);
-    if (_IOC_TYPE(cmd) != usblcd_MAGIC)
+    if (_IOC_TYPE(cmd) != LCD_MAGIC)
     {
         return -ENOTTY;
     }
 
     switch (cmd)
     {
-    case usblcd_GET_SIZE:
+    case LCD_GET_SIZE:
         val = MK_POS(lcd->rows, lcd->cols);
         put_user(val, (unsigned int __user *)arg);
         return 0;
-    case usblcd_GET_OLED:
+    case LCD_GET_OLED:
         val = lcd->oled;
         put_user(val, (unsigned int __user *)arg);
         return 0;
-    case usblcd_SET_BACKLIGHT:
+    case LCD_SET_BACKLIGHT:
         ret = usblcd_backlight(lcd, arg);
         break;
-    case usblcd_SET_DISPLAY:
+    case LCD_SET_DISPLAY:
         ret = usblcd_display(lcd, arg);
         break;
-    case usblcd_SET_CURSOR:
+    case LCD_SET_CURSOR:
         ret = usblcd_cursor(lcd, arg);
         break;
-    case usblcd_SET_BLINK:
+    case LCD_SET_BLINK:
         ret = usblcd_blink(lcd, arg);
         break;
-    case usblcd_SET_SCROLL:
+    case LCD_SET_SCROLL:
         ret = usblcd_scroll_display(lcd, arg);
         break;
-    case usblcd_SET_ENTRY:
+    case LCD_SET_ENTRY:
         ret = usblcd_entry(lcd, arg);
         break;
-    case usblcd_SET_AUTO_SCROLL:
+    case LCD_SET_AUTO_SCROLL:
         ret = usblcd_auto_scroll(lcd, arg);
         break;
-    case usblcd_SET_CURSOR_POS:
+    case LCD_SET_CURSOR_POS:
         ret = usblcd_set_cursor(lcd, POS_ROW(arg), POS_COL(arg));
         break;
-    case usblcd_CLEAR:
+    case LCD_CLEAR:
         ret = usblcd_clear(lcd);
         break;
     default:

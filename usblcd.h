@@ -5,7 +5,6 @@
 #include <linux/cdev.h>
 #include <linux/fb.h>
 #include <linux/gpio/consumer.h>
-#include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
