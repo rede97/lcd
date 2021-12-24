@@ -7,7 +7,7 @@ else
 # ARCH ?= arm
 # CROSS_COMPILE ?= arm-linux-gnueabihf-
 
-KDIR ?= /usr/src/linux-headers-5.4.0-91-generic
+KDIR ?= /usr/src/linux-headers-5.10.0-10-amd64
 PWD := $(shell pwd)
 
 modules:
