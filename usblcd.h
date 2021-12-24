@@ -20,7 +20,17 @@ struct usblcd
     struct cdev cdev;
     struct class *cls;
     struct device *device;
-    struct i2c_client *client;
+    struct usb_device *usbdev;
+    // ep pipe
+    int pipe_ep2_in;
+    int pipe_ep2_out;
+    // ep max packet
+    int maxp_ep2_in;
+    int maxp_ep2_out;
+    // buffer
+    int buf_idx;
+    int buf_last_ins_idx;
+    unsigned char buf_ep2[64];
     // lock
     struct mutex lock;
     // property
@@ -32,7 +42,7 @@ struct usblcd
     __u8 control;
     __u8 function;
     // status
-    __u8 pin;
+    bool backlight;
 };
 
 int usblcd_backlight(struct usblcd *lcd, bool onoff);
@@ -91,5 +101,17 @@ int usblcd_clear(struct usblcd *lcd);
 #define En 0B00000100 // Enable bit
 #define Rw 0B00000010 // Read/Write bit
 #define Rs 0B00000001 // Register select bit
+
+#define OP_NOP 0x0      // 单长度扩展操作
+#define OP_SET_IO 0x1   // 设置IO
+#define OP_DELAY_US 0x2 // 延时微妙
+#define OP_DELAY_MS 0x3 // 延时毫秒
+#define OP_CMD_4 0x4    // 写4bit命令
+#define OP_CMD_8 0x5    // 写8bit命令
+#define OP_DAT_8 0x6    // 写8bit数据
+
+#define GET_DATA(ins) (((ins)&0xf0) >> 4)
+#define GET_OP(ins) ((ins)&0x0f)
+#define MAKE_INS(op, dat) (((op)&0x0f) | ((dat) << 4))
 
 #endif
