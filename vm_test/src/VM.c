@@ -15,28 +15,35 @@ void VM_Execute(UINT8 ins)
     switch (last_op)
     {
     case OP_NOP:
+        curt_dat = GET_DATA(ins);
         switch (GET_OP(ins))
         {
         case OP_NOP:
             status = OP_NOP;
             break;
         case OP_SET_IO:
-            curt_dat = GET_DATA(ins);
-            printf("set io %x\n", curt_dat);
+            printf("set io 0x%x\n", curt_dat);
             // setio(curt_dat);
             break;
         case OP_DELAY_US:
+            printf("op delay us r: %d\n", curt_dat);
+            status = ins;
+            break;
         case OP_DELAY_MS:
+            printf("op delay ms r: %d\n", curt_dat);
             status = ins;
             break;
         case OP_CMD_4:
             // curt_dat = GET_DATA(ins);
             // cmd4(curt_dat);
-            v = curt_dat & 0x0f;
-            printf("cmd4 %x\n", v);
+            printf("cmd4 0x%x\n", curt_dat & 0xf);
             break;
         case OP_CMD_8:
+            printf("op cmd8 %d\n", curt_dat);
+            status = ins;
+            break;
         case OP_DAT_8:
+            printf("op dat8 %d\n", curt_dat);
             status = ins;
             break;
         default:
@@ -62,7 +69,7 @@ void VM_Execute(UINT8 ins)
     case OP_CMD_8:
         // cmd4(ins >> 4);
         // cmd4(ins & 0x0f);
-        printf("cmd 8 %x\n", v);
+        printf("cmd 8 0x%x\n", v);
         if (last_dat)
         {
             status = MAKE_INS(OP_CMD_8, last_dat - 1);
@@ -75,7 +82,7 @@ void VM_Execute(UINT8 ins)
     case OP_DAT_8:
         // dat4(ins >> 4);
         // dat4(ins & 0x0f);
-        printf("dat 8 %x\n", v);
+        printf("dat 8 0x%x\n", v);
         if (last_dat)
         {
             status = MAKE_INS(OP_DAT_8, last_dat - 1);
