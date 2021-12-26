@@ -1,6 +1,0 @@
-target("test")
-    set_kind("binary")
-    add_files("src/*.c")
-    set_warnings("all")
-    set_symbols("debug")
-    set_optimize("none")

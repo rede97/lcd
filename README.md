@@ -2,9 +2,14 @@
 ------
 ![example](./display.jpg)
 
-* Linux driver 
-* Rust program (User space)
+## Linux driver 
 
-test_driver
+* ./
 
-* CH552 USB Slave (8051)
+## Rust program (User space)
+
+* ./test_driver/
+
+## CH552 USB Slave (8051)
+
+* ./ch552/
