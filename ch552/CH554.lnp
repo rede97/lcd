@@ -1,0 +1,6 @@
+"Debug.obj",
+"USBLCD.obj",
+"VM.obj",
+"GPIO.obj" 
+TO "CH554" 
+RAMSIZE(256) 
