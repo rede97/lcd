@@ -46,7 +46,6 @@ struct usblcd
 };
 
 int usblcd_backlight(struct usblcd *lcd, bool onoff);
-int usblcd_dat(struct usblcd *lcd, __u8 val);
 int usblcd_display(struct usblcd *lcd, bool onoff);
 int usblcd_cursor(struct usblcd *lcd, bool onoff);
 int usblcd_blink(struct usblcd *lcd, bool onoff);
@@ -55,6 +54,8 @@ int usblcd_entry(struct usblcd *lcd, bool left_to_right);
 int usblcd_auto_scroll(struct usblcd *lcd, bool onoff);
 int usblcd_set_cursor(struct usblcd *lcd, __u8 row, __u8 col);
 int usblcd_clear(struct usblcd *lcd);
+int usblcd_home(struct usblcd *lcd);
+int usblcd_new_char(struct usblcd *lcd, __u8 location, const char *charmap);
 
 // commands
 #define LCD_CLEARDISPLAY 0x01
@@ -114,4 +115,11 @@ int usblcd_clear(struct usblcd *lcd);
 #define GET_OP(ins) ((ins)&0x0f)
 #define MAKE_INS(op, dat) (((op)&0x0f) | ((dat) << 4))
 
+int usblcd_emit(struct usblcd *lcd);
+int usblcd_submit(struct usblcd *lcd, __u8 opcode, __u8 opdat, const __u8 *dat, __u8 len);
+int usblcd_cmd8(struct usblcd *lcd, __u8 cmd);
+int usblcd_dat8(struct usblcd *lcd, const __u8 *dat, size_t len);
+int usblcd_cmd4(struct usblcd *lcd, __u8 cmd);
+int usblcd_udelay(struct usblcd *lcd, __u8 repeat, __u8 micros);
+int usblcd_mdelay(struct usblcd *lcd, __u8 repeat, __u8 mills);
 #endif

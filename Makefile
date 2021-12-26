@@ -1,7 +1,7 @@
 ifneq ($(KERNELRELEASE),)
 # kbuild part of makefile
 obj-m  := usblcd.o
-usblcd-y := usblcd_probe.o usblcd_ops.o
+usblcd-y := usblcd_probe.o usblcd_ops.o usblcd_compose.o
 else
 
 # ARCH ?= arm

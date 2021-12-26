@@ -4,6 +4,8 @@ use nix::ioctl_write_int;
 use nix::sys::ioctl;
 use nix::sys::stat::Mode;
 use nix::unistd::{close, write};
+use std::io::{Result, Write};
+use std::time::Duration;
 
 const PCFLCD_MAGIC: u8 = b'P';
 const PCFLCD_GET_SIZE: u8 = 0;
@@ -27,29 +29,64 @@ fn mk_pos(row: u8, col: u8) -> u32 {
     return (row as u32) << 8 | (col as u32);
 }
 
+struct LCD {
+    fd: i32,
+}
+
+impl LCD {
+    fn new(fd: i32) -> LCD {
+        return LCD { fd };
+    }
+}
+
+impl Write for LCD {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        let n = write(self.fd, buf)?;
+        return Ok(n);
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
 fn main() {
-    let lcd =
-        open("/dev/pcflcd", OFlag::O_RDWR | OFlag::O_SYNC, Mode::empty()).expect("open sha256 dev");
-    unsafe {
-        lcd_clear(lcd, 0).unwrap();
-        lcd_set_blink(lcd, 1).unwrap();
-    }
-    write(lcd, "Hello".as_bytes()).unwrap();
+    let lcdfd =
+        open("/dev/usblcd", OFlag::O_RDWR | OFlag::O_SYNC, Mode::empty()).expect("open sha256 dev");
     let mut lcd_size: u32 = 0;
+
     unsafe {
-        lcd_get_size(lcd, &mut lcd_size).unwrap();
-        let pos = mk_pos(1, 8);
-        println!("{:x}", pos);
-        lcd_set_cursor_pos(lcd, pos).unwrap();
+        lcd_get_size(lcdfd, &mut lcd_size).unwrap();
+
+        println!(
+            "lcd row: {} col: {}",
+            (lcd_size >> 8) & 0xff,
+            lcd_size & 0xff
+        );
     }
 
-    println!(
-        "lcd row: {} col: {}",
-        (lcd_size >> 8) & 0xff,
-        lcd_size & 0xff
-    );
+    unsafe {
+        lcd_clear(lcdfd, 0).unwrap();
+        //lcd_set_blink(lcdfd, 1).unwrap();
+    }
 
-    write(lcd, "Rust!".as_bytes()).unwrap();
+    let mut lcd = LCD::new(lcdfd);
 
-    close(lcd).unwrap();
+    write!(lcd, "2021-12-26 128th");
+    let mut cnt = 0;
+    let pos = mk_pos(1, 2);
+    unsafe {
+        lcd_set_cursor_pos(lcdfd, pos as u64).unwrap();
+    }
+    write!(lcd, "\0Anniversary\0");
+    loop {
+        // unsafe {
+        //     lcd_set_cursor_pos(lcdfd, pos as u64).unwrap();
+        // }
+        // write!(lcd, "{}", cnt).unwrap();
+        cnt += 1;
+        std::thread::sleep(Duration::from_secs(1));
+    }
+
+    close(lcdfd).unwrap();
 }

@@ -5,6 +5,135 @@ const char *DEV_NAME_STR = DEV_NAME;
 
 extern struct file_operations usblcd_ops;
 
+int usblcd_backlight(struct usblcd *lcd, bool onoff)
+{
+    lcd->backlight = onoff;
+    return usblcd_submit(lcd, OP_SET_IO, lcd->backlight == 1, NULL, 0);
+}
+
+int usblcd_display(struct usblcd *lcd, bool onoff)
+{
+    if (onoff)
+    {
+        lcd->control |= LCD_DISPLAYON;
+    }
+    else
+    {
+        lcd->control &= (~LCD_DISPLAYON);
+    }
+    return usblcd_cmd8(lcd, LCD_DISPLAYCONTROL | lcd->control);
+}
+
+int usblcd_cursor(struct usblcd *lcd, bool onoff)
+{
+    if (onoff)
+    {
+        lcd->control |= LCD_CURSORON;
+    }
+    else
+    {
+        lcd->control &= (~LCD_CURSORON);
+    }
+    return usblcd_cmd8(lcd, LCD_DISPLAYCONTROL | lcd->control);
+}
+
+int usblcd_blink(struct usblcd *lcd, bool onoff)
+{
+    if (onoff)
+    {
+        lcd->control |= LCD_BLINKON;
+    }
+    else
+    {
+        lcd->control &= (~LCD_BLINKON);
+    }
+    return usblcd_cmd8(lcd, LCD_DISPLAYCONTROL | lcd->control);
+}
+
+int usblcd_scroll_display(struct usblcd *lcd, bool right_left)
+{
+    return usblcd_cmd8(lcd, LCD_CURSORSHIFT | LCD_DISPLAYMOVE | (right_left ? LCD_MOVERIGHT : LCD_MOVELEFT));
+}
+
+int usblcd_entry(struct usblcd *lcd, bool left_to_right)
+{
+    if (left_to_right)
+    {
+        lcd->mode |= LCD_ENTRYLEFT;
+    }
+    else
+    {
+        lcd->mode &= (~LCD_ENTRYLEFT);
+    }
+    return usblcd_cmd8(lcd, LCD_ENTRYMODESET | lcd->mode);
+}
+
+int usblcd_auto_scroll(struct usblcd *lcd, bool onoff)
+{
+    if (onoff)
+    {
+        lcd->mode |= LCD_ENTRYSHIFTINCREMENT;
+    }
+    else
+    {
+        lcd->mode &= (~LCD_ENTRYSHIFTINCREMENT);
+    }
+    return usblcd_cmd8(lcd, LCD_ENTRYMODESET | lcd->mode);
+}
+
+int usblcd_set_cursor(struct usblcd *lcd, __u8 row, __u8 col)
+{
+    __u8 row_offsets[] = {0x00, 0x40, 0x14, 0x54};
+    if (row > lcd->rows)
+    {
+        row = lcd->rows - 1;
+    }
+    return usblcd_cmd8(lcd, LCD_SETDDRAMADDR | (col + row_offsets[row % 4]));
+}
+
+int usblcd_clear(struct usblcd *lcd)
+{
+    int err;
+    err = usblcd_cmd8(lcd, LCD_CLEARDISPLAY);
+    if (err)
+    {
+        return err;
+    }
+    err = usblcd_mdelay(lcd, 1, 2);
+    if (err)
+    {
+        return err;
+    }
+    if (lcd->oled)
+    {
+        return usblcd_set_cursor(lcd, 0, 0);
+    }
+    return 0;
+}
+
+int usblcd_home(struct usblcd *lcd)
+{
+    int err;
+    err = usblcd_cmd8(lcd, LCD_RETURNHOME);
+    if (err)
+    {
+        return err;
+    }
+    return usblcd_mdelay(lcd, 1, 2);
+}
+
+int usblcd_new_char(struct usblcd *lcd, __u8 location, const char *charmap)
+{
+    int err;
+    location &= 0x07;
+    err = usblcd_cmd8(lcd, LCD_SETCGRAMADDR | (location << 3));
+    if (err)
+    {
+        return err;
+    }
+    return usblcd_dat8(lcd, charmap, 8);
+}
+
 static void usblcd_info_init(struct device *dev, struct usblcd *lcd, __u8 *info)
 {
     switch (info[0])
@@ -51,22 +180,6 @@ static inline int usblcd_ep_check(struct device *dev, struct usb_endpoint_descri
     return 0;
 }
 
-static int usblcd_emit(struct usblcd *lcd)
-{
-    int len;
-    int ret = usb_bulk_msg(lcd->usbdev, lcd->pipe_ep2_out, lcd->buf_ep2, lcd->buf_idx, &len, 20 * HZ);
-    if (ret)
-    {
-        dev_alert(lcd->device, "read dev info failed: %d\n", ret);
-        return ret;
-    }
-    dev_info(lcd->device, "write: %d\n", len);
-    memset(lcd->buf_ep2, 0, lcd->maxp_ep2_out);
-    lcd->buf_idx = 0;
-    lcd->buf_last_ins_idx = 0;
-    return 0;
-}
-
 static int usblcd_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
     int ret;
@@ -77,9 +190,15 @@ static int usblcd_probe(struct usb_interface *intf, const struct usb_device_id *
     struct usb_endpoint_descriptor *endpoint;
     struct device *dev = &intf->dev;
     struct usblcd *lcd = devm_kzalloc(dev, sizeof(struct usblcd), GFP_KERNEL);
+    if (NULL == lcd)
+    {
+        return -ENOMEM;
+    }
     usb_set_intfdata(intf, lcd);
 
     usbdev = interface_to_usbdev(intf);
+    lcd->usbdev = usbdev;
+
     interface = intf->cur_altsetting;
     if (interface->desc.bNumEndpoints != 2)
     {
@@ -147,6 +266,7 @@ static int usblcd_probe(struct usb_interface *intf, const struct usb_device_id *
         }
     }
 
+    return 0;
 dev_create_err:
     class_destroy(lcd->cls);
     cdev_del(&lcd->cdev);
